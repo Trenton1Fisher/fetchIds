@@ -59,30 +59,40 @@ private:
         numRecords = num;
     }
     
-    char* page;
+    char* page = (char*) malloc(BLOCK_SIZE);
     // Insert new record 
-    void printLastPage(){
+    void printLastPage(Record record){
         ofstream destfile;
         destfile.open("EmployeeRelation.dat", fstream::app);
         if (!destfile.is_open()){
             cout << "Failed to open the dest file\n";
             return;
         }
-        cout << "Print last page" << endl;
         destfile << page;
-        //destfile << '\n\n';
         free(page);
         destfile.close();
 
-    }
-    void setupFirstPage(){
-        page = (char*) malloc(BLOCK_SIZE);
-        memset(page, '@', BLOCK_SIZE);
     }
 
     void insertRecord(Record record) {
         //char page[BLOCK_SIZE];
         
+        // No records written yet
+        /*
+        Num_records = 0
+        Create a new page
+        Write the size
+        Add slot at the end
+
+        Num_records > 1
+        Check size
+        if new_record_size + slot_size + curr_page_size >= 4096
+            --Write to file and wipe. Set Num_records to 0.
+        otherwise:
+        Add to page
+            -Record at the last record end
+            -Slot at beginning of last slot - size
+        */
         ofstream destfile;
         destfile.open("EmployeeRelation.dat", fstream::app);
         if (!destfile.is_open()){
@@ -92,7 +102,6 @@ private:
 
         int curr_rec_size = (8 + record.name.size() + record.bio.size() + 8 + 4);
         //Under block size
-        end_pointer = end_pointer-1;
         if ((curr_rec_size + buffer_size) < end_pointer){
             
             
@@ -100,19 +109,10 @@ private:
             cout << buffer_size;
             cout << ". New record size is: ";
             cout << curr_rec_size;
-            cout << ". Endpointer is: ";
-            cout << end_pointer;
-            cout << ". ID is: " +  record.name;
-            cout << endl;
-
-
+            cout << ". Endpointer is : ";
+            cout << end_pointer << endl;
             buffer_size += curr_rec_size;
             string temp;
-            cout << beginning_offset << endl;
-            beginning_pointer = beginning_offset;
-
-            // page[beginning_offset] = '$';
-            // beginning_offset++;
             for(int i = 0; i < 8; i++){
                 temp = to_string(record.id);
                 //cout << temp[i] << endl;
@@ -151,14 +151,14 @@ private:
             end_slot = end_slot + "#";
             temp = to_string(beginning_pointer);
             end_slot = end_slot + temp;
-            end_slot = end_slot + "%";
+            end_slot = end_slot + "#";
             
             for (int m = 0; m < end_slot.size(); m++){
-                page[end_pointer-end_slot.size()+m+1] = end_slot[m];
+                page[end_pointer-end_slot.size()+m] = end_slot[m];
             }
             buffer_size += end_slot.size();
 
-            end_pointer = end_pointer-end_slot.size();
+            end_pointer = end_pointer-end_slot.size()-1;
             //cout << "Done Adding Record to page" << endl;
 
         } //If the new record would exceed the block size, reset
@@ -168,19 +168,15 @@ private:
             
             //Clear the page
             destfile << page;
-            //destfile << '\n\n';
-            //free(page);
-            //page = (char*) malloc(BLOCK_SIZE);
-            memset(page, '!', BLOCK_SIZE);
+            free(page);
+            page = (char*) malloc(BLOCK_SIZE);
+            memset(page, '0', BLOCK_SIZE);
             num_pages += 1;
             //Move beginning offset Ex: 0 4096 8192, and thus pointer
             beginning_offset = 0;
             beginning_pointer = beginning_offset;
-
-            //page[beginning_offset] = '@';
-            // beginning_offset++;
             //Move end pointer Ex: 4096 8192
-            end_pointer = BLOCK_SIZE-1;
+            end_pointer = BLOCK_SIZE;
             string temp;
             
             for(int i = 0; i < 8; i++){
@@ -224,7 +220,7 @@ private:
             end_slot = end_slot + "#";
             temp = to_string(beginning_pointer);
             end_slot = end_slot + temp;
-            end_slot = end_slot + "%";
+            end_slot = end_slot + "#";
             //cout << "Before slot 2" << endl;
             
             for (int m = 0; m < end_slot.size(); m++){
@@ -233,10 +229,8 @@ private:
                 // cout << end_pointer-end_slot.size()+m;
                 // cout << " Slot: ";
                 // cout << end_slot[m] << endl;
-                page[end_pointer-end_slot.size()+m+1] = end_slot[m];
+                page[end_pointer-end_slot.size()+m] = end_slot[m];
             }
-            
-            end_pointer = end_pointer-end_slot.size();
             buffer_size += end_slot.size();       
         } 
         //Calcate size of next buffer.
@@ -283,7 +277,6 @@ public:
             
             //Open the file
             string curr_line;
-            setupFirstPage();
             while(std::getline(sourcefile, curr_line)) {
                 //cout << curr_line << endl;
                 vector<string> fields;
@@ -306,8 +299,8 @@ public:
                 //cout << curr_line << endl;
             }
 
-
-            printLastPage();
+            
+            printLastPage(new_record);
             
             
             //destfile.close();
@@ -316,10 +309,4 @@ public:
         }
 
     }
-
-    Record findRecordById(int id) {
-        cout << id << "\n";
-    }
-
-
 };
